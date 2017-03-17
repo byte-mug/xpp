@@ -84,6 +84,7 @@ int  luab_getmacro(lua_State* L, sds macro){
 	if(LUA_TFUNCTION!=lua_getfield(L,1,macro))
 		return -1;
 	lua_remove(L,1);
+	return i;
 }
 void luab_setmacro(lua_State* L, const char* macro, const char* code,int type){
 	int rc;
@@ -104,7 +105,5 @@ void luab_setmacro(lua_State* L, const char* macro, const char* code,int type){
 	lua_setfield(L,1,macro);
 	printf("gettop %d\n",lua_gettop(L));
 	lua_settop(L,0);
-	
-	
 }
 
