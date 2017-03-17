@@ -15,7 +15,7 @@ lib.a:
 	$(CC) -c $< -o $@
 
 xpp += main.o
-xpp += patlist.o strtest.o output.o tokenizer.o luab.o parser.c
+xpp += patlist.o strtest.o output.o tokenizer.o luab.o parser.o buildmacro.o
 xpp += lib.a lua.a
 
 xpp: $(xpp)

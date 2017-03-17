@@ -19,42 +19,51 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <stdio.h>
-#include <string.h>
-#include "patlist.h"
-#include "strtest.h"
-#include "tokenizer.h"
-#include "luab.h"
-#include "parser.h"
-#include "luasrc/lauxlib.h"
+#include <stdarg.h>
 #include "buildmacro.h"
 
-int main(int argc,const char** argv){
-	struct tokenizer tok;
-	tok.buffer = smust(sdsempty());
-	tok.source = ptrmust(fopen("test.txt","r"));
-	lua_State* L = create_lua();
-	
-	sds macro2 = bdmcr_build_macro_c(
-		"pre..';\\ndo {\\n'..body..'\\n'..pos..';\\n} while('..con..');'",
-		"body","pre","con","pos"
-	);
-	
-	luab_setmacro(L,"tail_for",macro2,MT_ARGS|MT_BODY|MT_SEMI);
-	
-	sds d = smust(sdsnew("REGISTER"));
-	printf("%s\n",luab_eval(L,d));
-	
-	//OutputStream dest = OutputStream_new();
-	OutputStream dest = FILE_asStream(stdout);
-	
-	tokenizer_init();
-	
-	parser_parse(&tok,L,dest);
-	
-	//printf("%s\n",(char*)dest->data);
-	return 0;
+sds bdmcr_build_macro(sds* args,int n,sds body){
+	int i;
+	sds dest = smust(sdsnew("local "));
+	for(i=0;i<n;++i){
+		if(i)dest = smust(sdscat(dest,","));
+		dest = smust(sdscatsds(dest,args[i]));
+	}
+	dest = smust(sdscat(dest," = ... ;\n"));
+	for(i=0;i<n;++i){
+		dest = smust(sdscatsds(dest,args[i]));
+		dest = smust(sdscat(dest," = normalize("));
+		dest = smust(sdscatsds(dest,args[i]));
+		dest = smust(sdscat(dest,");\n"));
+	}
+	dest = smust(sdscat(dest,"return solve("));
+	dest = smust(sdscatsds(dest,body));
+	dest = smust(sdscat(dest,");\n"));
+	return dest;
 }
 
-
+sds bdmcr_build_macro_stub(const char* body, ...){
+	const char* sp;
+	static sds margs[1024];
+	sds sbody,sresult;
+	va_list ap;
+	int i=0,l = 1024;
+	
+	sbody = smust(sdsnew(body));
+	
+	va_start(ap, body);
+	for(i=0;i<1024;++i){
+		sp = va_arg(ap, const char*);
+		if(!sp){ l = i; break; }
+		margs[i] = smust(sdsnew(sp));
+	}
+	va_end(ap);
+	
+	sresult = bdmcr_build_macro(margs,l,sbody);
+	sdsclear(sbody);
+	for(i=0;i<l;++i){
+		sdsclear(margs[i]);
+	}
+	return sresult;
+}
 

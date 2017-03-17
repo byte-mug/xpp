@@ -27,6 +27,7 @@
 enum {
 	MT_ARGS = 1<<5,
 	MT_BODY = 1<<6,
+	MT_SEMI = 1<<7, /* ARGS: Semicolon instead of comma. */
 };
 
 lua_State* create_lua();
@@ -35,3 +36,5 @@ void luab_pushsds(lua_State* L,sds str);
 void luab_call(lua_State* L);
 int  luab_getmacro(lua_State* L, sds macro);
 void luab_setmacro(lua_State* L, const char* macro, const char* code,int type);
+
+sds luab_eval(lua_State* L,sds code);

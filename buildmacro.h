@@ -19,42 +19,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <stdio.h>
-#include <string.h>
-#include "patlist.h"
-#include "strtest.h"
-#include "tokenizer.h"
-#include "luab.h"
-#include "parser.h"
-#include "luasrc/lauxlib.h"
-#include "buildmacro.h"
+#pragma once
 
-int main(int argc,const char** argv){
-	struct tokenizer tok;
-	tok.buffer = smust(sdsempty());
-	tok.source = ptrmust(fopen("test.txt","r"));
-	lua_State* L = create_lua();
-	
-	sds macro2 = bdmcr_build_macro_c(
-		"pre..';\\ndo {\\n'..body..'\\n'..pos..';\\n} while('..con..');'",
-		"body","pre","con","pos"
-	);
-	
-	luab_setmacro(L,"tail_for",macro2,MT_ARGS|MT_BODY|MT_SEMI);
-	
-	sds d = smust(sdsnew("REGISTER"));
-	printf("%s\n",luab_eval(L,d));
-	
-	//OutputStream dest = OutputStream_new();
-	OutputStream dest = FILE_asStream(stdout);
-	
-	tokenizer_init();
-	
-	parser_parse(&tok,L,dest);
-	
-	//printf("%s\n",(char*)dest->data);
-	return 0;
-}
+#include "baselib.h"
 
-
+sds bdmcr_build_macro(sds* args,int n,sds body);
+sds bdmcr_build_macro_stub(const char* body, ...);
+#define bdmcr_build_macro_c(...) bdmcr_build_macro_stub(__VA_ARGS__,(void*)0)
 

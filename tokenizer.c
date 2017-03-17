@@ -114,6 +114,7 @@ static int tokenizer_refill(struct tokenizer *t,int force){
 	t->buffer = smust(sdscat(t->buffer,data));
 	return 2;
 }
+#define LINEP printf("\n%d\n",__LINE__);
 sds tokenize_get(struct tokenizer *t, OutputStream targ){
 	const char* eoc;
 	size_t skp;

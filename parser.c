@@ -61,6 +61,46 @@ end:
 	OutputStream_detroy(dest);
 }
 
+static void parser_parse_args_semicolon(struct tokenizer *t,lua_State* L){
+	OutputStream dest = OutputStream_new();
+	int c = 0;
+	sds s = 0;
+	for(;;){
+		s = tokenize_get(t,(OutputStream)0);
+		if(!s) {
+			fprintf(stderr,"unexpected EOF\n");
+			abort();
+		}
+		switch(*s){
+		case '(':
+			c++;
+			break;
+		case ')':
+			if(!c){
+				sdsclear(s);
+				goto end;
+			}
+			c--;
+			break;
+		case ';':
+			if(!c){
+				luab_pushsds(L,(sds)(dest->data) );
+				sdssetlen((sds)(dest->data),0);
+				*((sds)(dest->data)) = 0;
+				sdsclear(s);
+				continue;
+			}
+			break;
+		}
+		OutputStream_write(dest,s,sdslen(s));
+		OutputStream_write(dest," ",1);
+		sdsclear(s);
+	}
+end:
+	luab_pushsds(L,(sds)(dest->data) );
+	OutputStream_detroy(dest);
+}
+
 static void parser_parse_body(struct tokenizer *t,lua_State* L){
 	OutputStream dest = OutputStream_new();
 	int c = 0;
@@ -95,7 +135,7 @@ end:
 
 void parser_parse(struct tokenizer *t,lua_State* L,OutputStream dest){
 	sds s;
-	int i;
+	int i,N;
 	for(;;){
 		s = tokenize_get(t,dest);
 		
@@ -118,7 +158,8 @@ void parser_parse(struct tokenizer *t,lua_State* L,OutputStream dest){
 				abort();
 			}
 			sdsclear(s);
-			parser_parse_args(t,L);
+			if(i&MT_SEMI) parser_parse_args_semicolon(t,L);
+			else          parser_parse_args(t,L);
 		}
 		if(i&MT_BODY){
 			s = tokenize_get(t,dest);
@@ -132,6 +173,7 @@ void parser_parse(struct tokenizer *t,lua_State* L,OutputStream dest){
 			}
 			sdsclear(s);
 			parser_parse_body(t,L);
+			lua_insert(L,2);
 		}
 		
 		luab_call(L);

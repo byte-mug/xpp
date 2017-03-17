@@ -43,6 +43,29 @@ static int solve(lua_State *L){
 	OutputStream_detroy(dest);
 	return 1;
 }
+static int normalize (lua_State *L){
+	int i,n;
+	n = lua_gettop(L);
+	for(i=1;i<=n;i++){
+		switch(lua_type(L,i)){
+		case LUA_TNIL:
+		case LUA_TBOOLEAN:
+		case LUA_TTABLE:
+		case LUA_TFUNCTION:
+		case LUA_TUSERDATA:
+		case LUA_TTHREAD:
+		case LUA_TLIGHTUSERDATA:
+			lua_pushliteral(L,"");
+			lua_replace(L,i);
+			break;
+		case LUA_TNUMBER:
+			lua_tostring(L,i);
+			break;
+		}
+	}
+	lua_settop(L,n);
+	return 1;
+}
 
 #define register_const(L,name) (lua_pushinteger(L, name),lua_setglobal(L, #name ))
 lua_State* create_lua(){
@@ -50,14 +73,17 @@ lua_State* create_lua(){
 	luaL_openlibs(L);
 	lua_settop(L,0);
 	lua_register(L,"solve",solve);
+	lua_register(L,"normalize",normalize);
 	lua_newtable(L);
 	lua_setglobal(L,"MACROS");
 	lua_newtable(L);
 	lua_setglobal(L,"MACROT");
-	luaL_loadstring(L, "function(n,f,t) MACROS[n]=f; MACROT[n]=t; return nil end");
+	//luaL_loadstring(L, "function(n,f,t) MACROS[n]=f; MACROT[n]=t; return nil end");
+	luaL_loadstring(L, "local n,f,t = ...; MACROS[n]=f; MACROT[n]=t; return nil");
 	lua_setglobal(L,"REGISTER");
 	register_const(L, MT_ARGS);
 	register_const(L, MT_BODY);
+	register_const(L, MT_SEMI);
 	return L;
 }
 sds luab_tosds(lua_State* L,int index){
@@ -103,7 +129,15 @@ void luab_setmacro(lua_State* L, const char* macro, const char* code,int type){
 	lua_getglobal(L,"MACROT");
 	lua_pushinteger(L, type);
 	lua_setfield(L,1,macro);
-	printf("gettop %d\n",lua_gettop(L));
 	lua_settop(L,0);
+}
+sds luab_eval(lua_State* L,sds code){
+	luaL_loadstring(L, code);
+	lua_pcall(L,0,1,0);
+	const char* c = lua_tostring(L,-1);
+	if(!c) c="";
+	sds ret = smust(sdsnew(c));
+	lua_settop(L,0);
+	return ret;
 }
 
