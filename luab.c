@@ -20,6 +20,7 @@
  * SOFTWARE.
  */
 #include "luab.h"
+#include "luasrc/lualib.h"
 #include "luasrc/lauxlib.h"
 #include "parser.h"
 #include <stdio.h>
