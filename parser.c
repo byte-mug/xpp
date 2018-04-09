@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Simon Schmidt
+ * Copyright (c) 2017-2018 Simon Schmidt
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@ static void parser_parse_args(struct tokenizer *t,lua_State* L){
 			break;
 		case ')':
 			if(!c){
-				sdsclear(s);
+				sdsfree(s);
 				goto end;
 			}
 			c--;
@@ -47,14 +47,14 @@ static void parser_parse_args(struct tokenizer *t,lua_State* L){
 				luab_pushsds(L,(sds)(dest->data) );
 				sdssetlen((sds)(dest->data),0);
 				*((sds)(dest->data)) = 0;
-				sdsclear(s);
+				sdsfree(s);
 				continue;
 			}
 			break;
 		}
 		OutputStream_write(dest,s,sdslen(s));
 		OutputStream_write(dest," ",1);
-		sdsclear(s);
+		sdsfree(s);
 	}
 end:
 	luab_pushsds(L,(sds)(dest->data) );
@@ -77,7 +77,7 @@ static void parser_parse_args_semicolon(struct tokenizer *t,lua_State* L){
 			break;
 		case ')':
 			if(!c){
-				sdsclear(s);
+				sdsfree(s);
 				goto end;
 			}
 			c--;
@@ -87,14 +87,14 @@ static void parser_parse_args_semicolon(struct tokenizer *t,lua_State* L){
 				luab_pushsds(L,(sds)(dest->data) );
 				sdssetlen((sds)(dest->data),0);
 				*((sds)(dest->data)) = 0;
-				sdsclear(s);
+				sdsfree(s);
 				continue;
 			}
 			break;
 		}
 		OutputStream_write(dest,s,sdslen(s));
 		OutputStream_write(dest," ",1);
-		sdsclear(s);
+		sdsfree(s);
 	}
 end:
 	luab_pushsds(L,(sds)(dest->data) );
@@ -117,7 +117,7 @@ static void parser_parse_body(struct tokenizer *t,lua_State* L){
 			break;
 		case '}':
 			if(!c){
-				sdsclear(s);
+				sdsfree(s);
 				goto end;
 			}
 			c--;
@@ -125,7 +125,7 @@ static void parser_parse_body(struct tokenizer *t,lua_State* L){
 		}
 		OutputStream_write(dest,s,sdslen(s));
 		OutputStream_write(dest," ",1);
-		sdsclear(s);
+		sdsfree(s);
 	}
 end:
 	luab_pushsds(L,(sds)(dest->data) );
@@ -143,10 +143,10 @@ void parser_parse(struct tokenizer *t,lua_State* L,OutputStream dest){
 		i = luab_getmacro(L,s);
 		if(i==-1){
 			OutputStream_write(dest,s,sdslen(s));
-			sdsclear(s);
+			sdsfree(s);
 			continue;
 		}
-		sdsclear(s); s = 0;
+		sdsfree(s); s = 0;
 		if(i&MT_ARGS){
 			s = tokenize_get(t,dest);
 			if(!s) {
@@ -157,7 +157,7 @@ void parser_parse(struct tokenizer *t,lua_State* L,OutputStream dest){
 				fprintf(stderr,"expeceted '(', got '%s'\n"/*)*/,s);
 				abort();
 			}
-			sdsclear(s);
+			sdsfree(s);
 			if(i&MT_SEMI) parser_parse_args_semicolon(t,L);
 			else          parser_parse_args(t,L);
 		}
@@ -171,7 +171,7 @@ void parser_parse(struct tokenizer *t,lua_State* L,OutputStream dest){
 				fprintf(stderr,"expeceted '{', got '%s'\n"/*}*/,s);
 				abort();
 			}
-			sdsclear(s);
+			sdsfree(s);
 			parser_parse_body(t,L);
 			lua_insert(L,2);
 		}
@@ -180,7 +180,7 @@ void parser_parse(struct tokenizer *t,lua_State* L,OutputStream dest){
 		lua_settop(L,1);
 		s = luab_tosds(L,1);
 		OutputStream_write(dest,s,sdslen(s));
-		sdsclear(s);
+		sdsfree(s);
 		lua_settop(L,0);
 	};
 }

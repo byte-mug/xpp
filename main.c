@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Simon Schmidt
+ * Copyright (c) 2017-2018 Simon Schmidt
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -42,8 +42,12 @@ int main(int argc,const char** argv){
 	
 	luab_setmacro(L,"tail_for",macro2,MT_ARGS|MT_BODY|MT_SEMI);
 	
-	sds d = smust(sdsnew("REGISTER"));
-	printf("%s\n",luab_eval(L,d));
+	macro2 = bdmcr_build_macro_c(
+		"load('return '..data..';\\n')()",
+		"data"
+	);
+	
+	luab_setmacro(L,"do_eval",macro2,MT_ARGS);
 	
 	//OutputStream dest = OutputStream_new();
 	OutputStream dest = FILE_asStream(stdout);
@@ -52,7 +56,6 @@ int main(int argc,const char** argv){
 	
 	parser_parse(&tok,L,dest);
 	
-	//printf("%s\n",(char*)dest->data);
 	return 0;
 }
 

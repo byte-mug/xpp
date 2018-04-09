@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Simon Schmidt
+ * Copyright (c) 2017-2018 Simon Schmidt
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,12 +24,15 @@
 #include "luasrc/lauxlib.h"
 #include "parser.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include "buildmacro.h"
 
 #if 0
 static int this_is_not_a_function (lua_State *L){
 	return 0;
 }
 #endif
+
 static int solve(lua_State *L){
 	struct tokenizer tok;
 	tok.buffer = smust(luab_tosds(L,1));
@@ -66,6 +69,123 @@ static int normalize (lua_State *L){
 	lua_settop(L,n);
 	return 1;
 }
+static int import_file (lua_State *L){
+	lua_settop(L,1);
+	const char* fp = lua_tostring(L,1);
+	switch(luaL_loadfile(L,fp)) {
+		case LUA_OK: goto noerr;
+		case LUA_ERRFILE:
+		fprintf(stderr,"File not found: %s",fp);
+		lua_pushfstring(L,"File not found: %s",fp);
+		break;
+		default:
+		fprintf(stderr,"Error parsing file: %s",fp);
+		lua_pushfstring(L,"Error parsing file: %s",fp);
+	}
+	return lua_error(L);
+	noerr:
+	lua_call(L,0,0);
+	lua_settop(L,0);
+	return 0;
+}
+static int include_file(lua_State *L){
+	lua_settop(L,1);
+	const char* fp = lua_tostring(L,1);
+	struct tokenizer tok;
+	tok.buffer = smust(sdsempty());
+	tok.source = ptrmust(fopen(fp,"r"));
+	OutputStream dest = OutputStream_new();
+	lua_settop(L,0);
+	parser_parse(&tok,L,dest);
+	lua_settop(L,0);
+	sdsfree(tok.buffer);
+	luab_pushsds(L,(sds)(dest->data) );
+	OutputStream_detroy(dest);
+	return 1;
+}
+static int bdmcr_build_macro_lua (lua_State *L){
+	int i,j,m,n;
+	static sds margs[1024];
+	sds *args=0;
+	sds *allc=0;
+	sds body,result;
+	
+	n = lua_gettop(L);
+	if(n<1){
+		lua_pushliteral(L,"");
+		return 1;
+	}
+	body = smust(luab_tosds(L,1));
+	m = n-1;
+	if(m<1024) args = margs;
+	else args=allc=malloc(sizeof(sds)*m); /* XXX: Overflow hazard. */
+	
+	for(i=0,j=2;i<m;++i) {
+		args[i] = smust(luab_tosds(L,j));
+	}
+	
+	result = bdmcr_build_macro(args,m,body);
+	
+	sdsfree(body);
+	for(i=0,j=2;i<m;++i)
+		sdsfree(args[i]);
+	
+	if(allc)free(allc);
+	
+	lua_settop(L,0);
+	
+	luab_pushsds(L,result);
+	sdsfree(result);
+	return 1;
+}
+static int stringify (lua_State *L){
+	static const char hex[]="0123456789ABCDEF";
+	char buf[] = "\\ ";
+	char buf2[2];
+	int x;
+	const char* ccin;
+	size_t i;
+	size_t ccins;
+	OutputStream dest;
+	lua_settop(L,1);
+	
+	dest = OutputStream_new();
+	ccin = lua_tolstring(L,1,&ccins);
+	
+	OutputStream_write(dest,"\"",1);
+	
+	
+	for(i=0;i<ccins;++i) switch(x=(ccin[i]&0xff) ){
+		case '\\':
+		case '\"':
+		case '\'':
+			buf[1]=x;
+			OutputStream_write(dest,buf,2);
+			continue;
+		case 0 ... 31:
+		case 0x7f ... 0xff:
+			switch(x){
+			case '\r': OutputStream_write(dest,"\\r",2); continue;
+			case '\n': OutputStream_write(dest,"\\n",2); continue;
+			case '\t': OutputStream_write(dest,"\\t",2); continue;
+			}
+			buf2[0]=hex[(x>>4)&0xf];
+			buf2[1]=hex[(x   )&0xf];
+			OutputStream_write(dest,"\\x",2);
+			OutputStream_write(dest,buf2,2);
+			continue;
+		default:
+			OutputStream_write(dest,ccin+i,1);
+	}
+	
+	OutputStream_write(dest,"\"",1);
+	
+	lua_settop(L,0);
+	luab_pushsds(L,(sds)(dest->data) );
+	
+	OutputStream_detroy(dest);
+	return 1;
+}
 
 #define register_const(L,name) (lua_pushinteger(L, name),lua_setglobal(L, #name ))
 lua_State* create_lua(){
@@ -74,6 +194,11 @@ lua_State* create_lua(){
 	lua_settop(L,0);
 	lua_register(L,"solve",solve);
 	lua_register(L,"normalize",normalize);
+	lua_register(L,"import_file",import_file);
+	lua_register(L,"include_file",include_file);
+	lua_register(L,"bdmcr_build_macro",bdmcr_build_macro_lua);
+	lua_register(L,"stringify",stringify);
+	
 	lua_newtable(L);
 	lua_setglobal(L,"MACROS");
 	lua_newtable(L);

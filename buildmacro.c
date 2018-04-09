@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Simon Schmidt
+ * Copyright (c) 2017-2018 Simon Schmidt
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -60,9 +60,9 @@ sds bdmcr_build_macro_stub(const char* body, ...){
 	va_end(ap);
 	
 	sresult = bdmcr_build_macro(margs,l,sbody);
-	sdsclear(sbody);
+	sdsfree(sbody);
 	for(i=0;i<l;++i){
-		sdsclear(margs[i]);
+		sdsfree(margs[i]);
 	}
 	return sresult;
 }

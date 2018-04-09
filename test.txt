@@ -1,3 +1,9 @@
+#include <stdio.h>
+#include <string.h>
+
+//do_eval(tostring(REGISTER))
+//do_eval(tostring(REGISTER("RAW",function(x) return solve(x) end,MT_BODY)))
+do_eval(tostring(stringify("Hallo\0\x01\xffHallo")))
 
 int main(int argc,const char** argv){
 	int i,j;
