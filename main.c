@@ -41,7 +41,7 @@ int main(int argc,char** argv){
 	lua_State* L = create_lua();
 	lua_settop(L,0);
 	
-	while ( (c = getopt(argc, argv, "I:")) != -1) {
+	while ( (c = getopt(argc, argv, "I:L:")) != -1) {
 		switch(c) {
 		case 'I':
 			
@@ -53,7 +53,7 @@ int main(int argc,char** argv){
 		case 'L':
 			code = luaL_dofile(L,optarg);
 			lua_settop(L,0);
-			if(code!=LUA_OK) break;
+			if(code==LUA_OK) break;
 			fprintf(stderr,"Loading library file: %s -> %d\n",optarg,code);
 			return -1;
 		}
