@@ -99,6 +99,7 @@ static int include_file(lua_State *L){
 	parser_parse(&tok,L,dest);
 	lua_settop(L,0);
 	sdsfree(tok.buffer);
+	fclose((FILE*)tok.source);
 	luab_pushsds(L,(sds)(dest->data) );
 	OutputStream_detroy(dest);
 	return 1;
@@ -187,6 +188,37 @@ static int stringify (lua_State *L){
 	return 1;
 }
 
+static int append (lua_State *L){
+	lua_Integer li;
+	lua_len(L,-2);
+	li = lua_tointeger(L,-1);
+	lua_pop(L,1);
+	lua_rawseti(L,-2,li+1);
+	return 0;
+}
+void luab_append(lua_State* L){
+	append(L);
+}
+static int checkfile(lua_State *L){
+	FILE * fobj;
+	const char* fp;
+	int ok = 0;
+	lua_settop(L,1);
+	fp = lua_tostring(L,1);
+	if(!fp) goto done;
+	fobj = fopen(fp,"r");
+	if(!fobj) goto done;
+	fclose(fobj);
+	ok = 1;
+	
+	done:
+	
+	lua_settop(L,0);
+	lua_pushboolean(L,ok);
+	return 1;
+}
+
+
 #define register_const(L,name) (lua_pushinteger(L, name),lua_setglobal(L, #name ))
 lua_State* create_lua(){
 	lua_State *L = (lua_State*)ptrmust(luaL_newstate());
@@ -198,6 +230,8 @@ lua_State* create_lua(){
 	lua_register(L,"include_file",include_file);
 	lua_register(L,"bdmcr_build_macro",bdmcr_build_macro_lua);
 	lua_register(L,"stringify",stringify);
+	lua_register(L,"append",append);
+	lua_register(L,"checkfile",checkfile);
 	
 	lua_newtable(L);
 	lua_setglobal(L,"MACROS");
@@ -206,6 +240,12 @@ lua_State* create_lua(){
 	//luaL_loadstring(L, "function(n,f,t) MACROS[n]=f; MACROT[n]=t; return nil end");
 	luaL_loadstring(L, "local n,f,t = ...; MACROS[n]=f; MACROT[n]=t; return nil");
 	lua_setglobal(L,"REGISTER");
+	
+	lua_newtable(L);
+	lua_setglobal(L,"INCLUDES");
+	luaL_loadstring(L, "local incl = ...; local i,n; for i = 1, #INCLUDES do n=INCLUDES[i]..'/'..incl; if checkfile(n) then return n end; end; return incl ");
+	lua_setglobal(L,"find_include");
+	
 	register_const(L, MT_ARGS);
 	register_const(L, MT_BODY);
 	register_const(L, MT_SEMI);

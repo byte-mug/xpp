@@ -77,6 +77,7 @@ void tokenizer_init(){
 	prefix_insert(special,"/*");
 	prefix_insert(special,"\"");
 	prefix_insert(special,"\'");
+	prefix_insert(special,"#");
 	
 	for(;*elems;++elems){
 		*buf=*elems;
@@ -117,7 +118,7 @@ static int tokenizer_refill(struct tokenizer *t,int force){
 #define LINEP printf("\n%d\n",__LINE__);
 sds tokenize_get(struct tokenizer *t, OutputStream targ){
 	const char* eoc;
-	size_t skp;
+	size_t skp,oskp;
 	int n;
 	sds result;
 restart:
@@ -129,14 +130,27 @@ restart:
 	if(n==2) goto restart;
 	
 	skp = prefix_check(special,t->buffer,sdslen(t->buffer));
-	if(skp==2){
+	oskp = skp;
+	
+	switch(skp) {
+	case 2:
 		switch(t->buffer[1]){
 		case '/': eoc = "\n";break;
 		case '*': eoc = "*/";break;
 		default: __builtin_unreachable();
 		}
+		break;
+	case 1:
+		eoc = 0;
+		if(t->buffer[0]=='#') eoc = "\n";
+		break;
+	default:
+		eoc = 0;
+		skp = 0;
+	}
+	if(skp&&eoc){
 		for(;;){
-			skp = match_end(t->buffer+2,sdslen(t->buffer)-2,eoc);
+			skp = match_end(t->buffer+oskp,sdslen(t->buffer)-oskp,eoc);
 			if(skp==0){
 				if(!tokenizer_refill(t,1)) {
 					sdssetlen(t->buffer,0);
@@ -144,15 +158,15 @@ restart:
 				}
 				continue;
 			}
-			if(targ) OutputStream_write(targ,t->buffer,skp+2);
-			sdsrange(t->buffer,(int)skp+2,-1);
+			if(targ) OutputStream_write(targ,t->buffer,skp+oskp);
+			sdsrange(t->buffer,(int)skp+oskp,-1);
 			break;
 		}
 		goto restart;
 	}
-	if(skp==1){
+	if(skp&&!eoc){
 		for(;;){
-			skp = scan_lit(t->buffer+1,sdslen(t->buffer)-1,t->buffer[0]);
+			skp = scan_lit(t->buffer+oskp,sdslen(t->buffer)-oskp,t->buffer[0]);
 			if(skp==0){
 				if(!tokenizer_refill(t,1)) {
 					sdssetlen(t->buffer,0);
@@ -160,8 +174,8 @@ restart:
 				}
 				continue;
 			}
-			result = smust(sdsnewlen(t->buffer,skp+1));
-			sdsrange(t->buffer,(int)skp+1,-1);
+			result = smust(sdsnewlen(t->buffer,skp+oskp));
+			sdsrange(t->buffer,(int)skp+oskp,-1);
 			return result;
 		}
 	}

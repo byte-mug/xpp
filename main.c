@@ -39,14 +39,12 @@ int main(int argc,const char** argv){
 		"pre..';\\ndo {\\n'..body..'\\n'..pos..';\\n} while('..con..');'",
 		"body","pre","con","pos"
 	);
-	
 	luab_setmacro(L,"tail_for",macro2,MT_ARGS|MT_BODY|MT_SEMI);
 	
 	macro2 = bdmcr_build_macro_c(
 		"load('return '..data..';\\n')()",
 		"data"
 	);
-	
 	luab_setmacro(L,"do_eval",macro2,MT_ARGS);
 	
 	//OutputStream dest = OutputStream_new();

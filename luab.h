@@ -38,3 +38,13 @@ int  luab_getmacro(lua_State* L, sds macro);
 void luab_setmacro(lua_State* L, const char* macro, const char* code,int type);
 
 sds luab_eval(lua_State* L,sds code);
+
+/*
+ * Does the equivalent of t[(#t)+1] = v,
+ * where v is the value at the top of the stack,
+ * and t is the value just below the top.
+ *
+ * This function pops both the table and the value from the stack.
+**/
+void luab_append(lua_State* L);
+
