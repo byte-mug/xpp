@@ -21,6 +21,7 @@
  */
 #include <stdio.h>
 #include <string.h>
+//_Include("test1")
 
 int main(int argc,const char** argv){
 	int i,j;

@@ -28,49 +28,27 @@
 #include "parser.h"
 #include "luasrc/lauxlib.h"
 #include "buildmacro.h"
-#include <unistd.h>
 
-int main(int argc,char** argv){
-	int c;
-	int code;
+int main(int argc,const char** argv){
 	struct tokenizer tok;
-	OutputStream dest = 0;
 	tok.buffer = smust(sdsempty());
-	tok.source = stdin;
-	
+	tok.source = ptrmust(fopen("test.txt","r"));
 	lua_State* L = create_lua();
-	lua_settop(L,0);
 	
-	while ( (c = getopt(argc, argv, "I:")) != -1) {
-		switch(c) {
-		case 'I':
-			
-			lua_getglobal(L,"INCLUDES");
-			lua_pushstring(L,optarg);
-			luab_append(L);
-			lua_settop(L,0);
-			break;
-		case 'L':
-			code = luaL_dofile(L,optarg);
-			lua_settop(L,0);
-			if(code!=LUA_OK) break;
-			fprintf(stderr,"Loading library file: %s -> %d\n",optarg,code);
-			return -1;
-		}
-	}
-	if(optind < argc) {
-		tok.source = fopen(argv[optind++],"r");
-		if(!tok.source) { perror("Open input file"); return -1; }
-	}
-	if(optind < argc) {
-		FILE * f = fopen(argv[optind++],"w");
-		if(!f) { perror("Open input file"); return -1; }
-		dest = FILE_asStream(f);
-	}
-	if(!dest) dest = FILE_asStream(stdout);
+	sds macro2 = bdmcr_build_macro_c(
+		"pre..';\\ndo {\\n'..body..'\\n'..pos..';\\n} while('..con..');'",
+		"body","pre","con","pos"
+	);
+	luab_setmacro(L,"tail_for",macro2,MT_ARGS|MT_BODY|MT_SEMI);
 	
-	//luab_setmacro(L,"_Include","local name = ...; return include_file(find_include(name)); ",MT_ARGS);
-	//luab_setmacro(L,"_Import","local name = ...; return import_file(find_include(name)); ",MT_ARGS);
+	macro2 = bdmcr_build_macro_c(
+		"load('return '..data..';\\n')()",
+		"data"
+	);
+	luab_setmacro(L,"do_eval",macro2,MT_ARGS);
+	
+	//OutputStream dest = OutputStream_new();
+	OutputStream dest = FILE_asStream(stdout);
 	
 	tokenizer_init();
 	
